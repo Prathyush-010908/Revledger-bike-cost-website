@@ -96,13 +96,13 @@ BikeFinder/
 Clone the repository:
 
 ```bash
-git clone https://github.com/Prathyush-010908/YOUR-REPOSITORY-NAME.git
+git clone https://github.com/Prathyush-010908/Revledger-bike-cost-website.git
 ```
 
 Move into the project folder:
 
 ```bash
-cd YOUR-REPOSITORY-NAME
+cd Revledger-bike-cost-webstie
 ```
 
 Install dependencies:
