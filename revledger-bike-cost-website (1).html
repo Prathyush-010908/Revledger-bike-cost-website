@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RevLedger — Find Your Bike, Track the Real Cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0D0F12; --surface:#15181C; --surface-2:#1D2126; --surface-3:#262B31;
+  --border:#272C32; --text:#ECEDEF; --text-dim:#8B929B; --text-dim2:#5B626B;
+  --accent:#FF7A33; --accent-dim:#3A2416; --accent-2:#33C2A3; --accent-2-dim:#12271F;
+  --danger:#FF5C5C; --radius:14px; --radius-sm:8px;
+  --shadow: 0 8px 30px rgba(0,0,0,0.35);
+}
+[data-theme="light"]{
+  --bg:#F4F3EF; --surface:#FFFFFF; --surface-2:#EFEEE9; --surface-3:#E4E2DB;
+  --border:#E1DFD7; --text:#15181C; --text-dim:#5B626B; --text-dim2:#8B929B;
+  --accent-dim:#FFE4D2; --accent-2-dim:#D8F3EA;
+  --shadow: 0 8px 24px rgba(20,20,15,0.08);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Inter',sans-serif; line-height:1.5;
+  transition:background .25s ease, color .25s ease;
+  -webkit-font-smoothing:antialiased;
+}
+.disp{font-family:'Rajdhani',sans-serif; letter-spacing:.01em;}
+.mono{font-family:'JetBrains Mono',monospace;}
+a{color:inherit; text-decoration:none;}
+button{font-family:inherit; cursor:pointer;}
+img{max-width:100%; display:block;}
+.container{max-width:1200px; margin:0 auto; padding:0 24px;}
+::selection{background:var(--accent); color:#0D0F12;}
+
+/* NAV */
+header{position:sticky; top:0; z-index:50; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px); border-bottom:1px solid var(--border);}
+.navwrap{display:flex; align-items:center; justify-content:space-between; height:68px;}
+.logo{display:flex; align-items:center; gap:9px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px;}
+.logo .dot{width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent);}
+.logo small{color:var(--text-dim); font-weight:600; font-size:11px; letter-spacing:.14em; text-transform:uppercase; margin-left:2px;}
+nav.links{display:flex; gap:6px; align-items:center;}
+nav.links button.navlink{background:none; border:none; color:var(--text-dim); font-weight:600; font-size:14.5px; padding:9px 14px; border-radius:8px; transition:.15s;}
+nav.links button.navlink:hover{color:var(--text); background:var(--surface-2);}
+nav.links button.navlink.active{color:var(--text); background:var(--surface-2);}
+.navright{display:flex; align-items:center; gap:10px;}
+.icon-btn{width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface); display:flex; align-items:center; justify-content:center; color:var(--text-dim); transition:.15s;}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent);}
+.burger{display:none;}
+@media(max-width:880px){
+  nav.links{display:none;}
+  .burger{display:flex;}
+}
+.mobile-menu{display:none; flex-direction:column; gap:2px; padding:10px 24px 16px; border-bottom:1px solid var(--border); background:var(--surface);}
+.mobile-menu.open{display:flex;}
+.mobile-menu button{text-align:left; background:none; border:none; color:var(--text-dim); font-weight:600; padding:11px 6px; font-size:15px; border-bottom:1px solid var(--border);}
+.mobile-menu button:last-child{border-bottom:none;}
+
+/* HERO */
+.hero{padding:64px 0 46px; position:relative; overflow:hidden;}
+.hero::before{content:""; position:absolute; top:-120px; right:-120px; width:420px; height:420px; background:radial-gradient(circle, var(--accent-dim), transparent 70%); pointer-events:none;}
+.eyebrow{display:inline-flex; align-items:center; gap:8px; color:var(--accent); font-weight:700; font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; margin-bottom:18px;}
+.eyebrow::before{content:""; width:22px; height:1px; background:var(--accent);}
+h1.hero-h{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:clamp(36px,6vw,64px); line-height:1.02; letter-spacing:-.01em; max-width:820px;}
+h1.hero-h em{font-style:normal; color:var(--accent);}
+.hero-sub{color:var(--text-dim); font-size:17px; max-width:560px; margin:20px 0 34px;}
+
+.searchbar{position:relative; max-width:640px;}
+.searchbar-inner{display:flex; align-items:center; gap:12px; background:var(--surface); border:1.5px solid var(--border); border-radius:16px; padding:6px 8px 6px 20px; box-shadow:var(--shadow);}
+.searchbar-inner:focus-within{border-color:var(--accent);}
+.searchbar-inner svg{flex-shrink:0; color:var(--text-dim2);}
+.searchbar input{flex:1; background:none; border:none; outline:none; color:var(--text); font-size:16px; padding:14px 0; font-family:'Inter',sans-serif;}
+.searchbar input::placeholder{color:var(--text-dim2);}
+.searchbar button.go{background:var(--accent); color:#100A06; border:none; font-weight:700; font-size:14px; padding:12px 20px; border-radius:11px; white-space:nowrap;}
+.chip-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px;}
+.chip{font-size:12.5px; color:var(--text-dim); border:1px solid var(--border); padding:6px 12px; border-radius:100px; background:var(--surface);}
+.chip:hover{color:var(--accent); border-color:var(--accent); cursor:pointer;}
+
+.suggest-panel{position:absolute; top:calc(100% + 8px); left:0; right:0; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; z-index:40;}
+.suggest-item{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); transition:.12s;}
+.suggest-item:last-child{border-bottom:none;}
+.suggest-item:hover{background:var(--surface-2); cursor:pointer;}
+.suggest-thumb{width:42px; height:42px; border-radius:9px; background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; position:relative; overflow:hidden;}
+.suggest-name{font-weight:600; font-size:14.5px;}
+.suggest-meta{font-size:12px; color:var(--text-dim);}
+
+/* SECTIONS */
+section.block{padding:52px 0;}
+.block-head{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:26px; gap:16px; flex-wrap:wrap;}
+.block-title{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:26px;}
+.block-title .idx{color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; margin-right:10px;}
+.block-link{font-size:13.5px; font-weight:600; color:var(--text-dim); border-bottom:1px solid var(--border); padding-bottom:2px;}
+.block-link:hover{color:var(--accent); border-color:var(--accent);}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(252px,1fr)); gap:18px;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; transition:.2s; cursor:pointer; display:flex; flex-direction:column;}
+.card:hover{border-color:var(--accent); transform:translateY(-3px); box-shadow:var(--shadow);}
+.card-media{height:132px; background:linear-gradient(135deg, var(--surface-2), var(--surface-3)); display:flex; align-items:center; justify-content:center; font-size:44px; position:relative;}
+.card-tag{position:absolute; top:10px; left:10px; background:var(--surface); border:1px solid var(--border); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:4px 8px; border-radius:100px; color:var(--text-dim);}
+.card-body{padding:16px; flex:1; display:flex; flex-direction:column; gap:8px;}
+.card-brand{font-size:11.5px; color:var(--text-dim2); font-weight:700; text-transform:uppercase; letter-spacing:.08em;}
+.card-name{font-weight:700; font-size:16.5px; font-family:'Rajdhani',sans-serif;}
+.card-stats{display:flex; gap:14px; margin-top:2px;}
+.card-stat{font-size:12.5px; color:var(--text-dim);}
+.card-stat b{color:var(--text); font-family:'JetBrains Mono',monospace; font-weight:700; display:block; font-size:14px;}
+.card-price{margin-top:auto; padding-top:10px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;}
+.price-tag{font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent); font-size:15px;}
+.card-fav{background:none; border:none; color:var(--text-dim2); font-size:17px;}
+.card-fav.active{color:var(--accent);}
+
+/* FILTERS / BROWSE */
+.browse-wrap{display:grid; grid-template-columns:240px 1fr; gap:28px; align-items:flex-start;}
+@media(max-width:820px){.browse-wrap{grid-template-columns:1fr;}}
+.filter-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; position:sticky; top:86px;}
+.filter-title{font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin:16px 0 10px;}
+.filter-title:first-child{margin-top:0;}
+.filter-opt{display:flex; align-items:center; gap:9px; padding:6px 0; font-size:14px; color:var(--text-dim);}
+.filter-opt input{accent-color:var(--accent); width:15px; height:15px;}
+.filter-opt.checked{color:var(--text);}
+.filter-clear{width:100%; margin-top:16px; padding:10px; border-radius:9px; border:1px solid var(--border); background:none; color:var(--text-dim); font-weight:600; font-size:13px;}
+.filter-clear:hover{border-color:var(--danger); color:var(--danger);}
+.result-count{color:var(--text-dim); font-size:13.5px; margin-bottom:16px;}
+.compare-bar{position:sticky; bottom:0; margin-top:20px; background:var(--surface); border:1px solid var(--accent); border-radius:14px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; box-shadow:var(--shadow); gap:12px; flex-wrap:wrap;}
+.cmp-btn{background:var(--accent); color:#100A06; font-weight:700; border:none; padding:11px 20px; border-radius:10px; font-size:13.5px;}
+.cmp-btn:disabled{opacity:.4; cursor:not-allowed;}
+.cmp-check-wrap{position:absolute; top:10px; right:10px; z-index:2;}
+.cmp-check{width:22px; height:22px; border-radius:6px; background:var(--surface); border:1.5px solid var(--border); accent-color:var(--accent);}
+
+/* DETAILS PAGE */
+.crumb{font-size:13px; color:var(--text-dim); margin-bottom:20px; display:flex; gap:6px; align-items:center;}
+.crumb button{background:none;border:none;color:var(--text-dim); font-weight:600;}
+.crumb button:hover{color:var(--accent);}
+.detail-hero{display:grid; grid-template-columns:1fr 1fr; gap:36px; align-items:center; padding:20px 0 40px;}
+@media(max-width:760px){.detail-hero{grid-template-columns:1fr;}}
+.detail-media{height:280px; border-radius:var(--radius); background:linear-gradient(135deg, var(--surface-2), var(--surface-3)); display:flex; align-items:center; justify-content:center; font-size:110px; border:1px solid var(--border); position:relative; overflow:hidden;}
+.detail-brand{color:var(--accent); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12.5px; margin-bottom:6px;}
+.detail-name{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:clamp(30px,4vw,44px); line-height:1.03;}
+.detail-variant{color:var(--text-dim); margin-top:8px; font-size:15px;}
+.detail-actions{display:flex; gap:10px; margin-top:22px;}
+.btn{padding:12px 20px; border-radius:11px; font-weight:700; font-size:14px; border:1px solid var(--border); background:var(--surface); color:var(--text);}
+.btn.primary{background:var(--accent); color:#100A06; border-color:var(--accent);}
+.btn:hover{border-color:var(--accent);}
+
+.highlight-row{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin:8px 0 44px;}
+@media(max-width:760px){.highlight-row{grid-template-columns:repeat(2,1fr);}}
+.hl-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px; text-align:left;}
+.hl-label{font-size:11px; color:var(--text-dim2); font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;}
+.hl-val{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:19px; color:var(--text);}
+.hl-val.accent{color:var(--accent);}
+
+.specs-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:20px;}
+@media(max-width:760px){.specs-grid{grid-template-columns:1fr;}}
+.spec-cat{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px;}
+.spec-cat h4{font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; margin-bottom:12px; color:var(--accent);}
+.spec-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px dashed var(--border); font-size:14px;}
+.spec-row:last-child{border-bottom:none;}
+.spec-row span:first-child{color:var(--text-dim);}
+.spec-row span:last-child{font-family:'JetBrains Mono',monospace; font-weight:600;}
+
+.price-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-top:20px;}
+.price-line{display:flex; justify-content:space-between; padding:10px 0; font-size:14.5px; color:var(--text-dim); border-bottom:1px solid var(--border);}
+.price-line span:last-child{font-family:'JetBrains Mono',monospace; color:var(--text);}
+.price-total{display:flex; justify-content:space-between; padding-top:16px; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px;}
+.price-total span:last-child{color:var(--accent); font-family:'JetBrains Mono',monospace;}
+.disclaimer{font-size:12.5px; color:var(--text-dim2); margin-top:14px; line-height:1.5; border-left:2px solid var(--accent); padding-left:10px;}
+
+/* CALCULATOR */
+.calc-wrap{display:grid; grid-template-columns:1.15fr 1fr; gap:24px; align-items:flex-start; margin-top:16px;}
+@media(max-width:900px){.calc-wrap{grid-template-columns:1fr;}}
+.calc-panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px;}
+.calc-panel h4{font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+.calc-panel h4 .n{width:22px; height:22px; border-radius:50%; background:var(--accent-dim); color:var(--accent); font-size:12px; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace;}
+.field{margin-bottom:16px;}
+.field label{display:flex; justify-content:space-between; font-size:13px; color:var(--text-dim); margin-bottom:7px; font-weight:600;}
+.field label .fval{color:var(--accent); font-family:'JetBrains Mono',monospace;}
+.field input[type=range]{width:100%; accent-color:var(--accent);}
+.field input[type=number], .field input[type=text]{width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:10px 12px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:14px;}
+.field input:focus{outline:none; border-color:var(--accent);}
+.toggle-row{display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-top:1px solid var(--border);}
+.toggle-row:first-of-type{border-top:none;}
+.switch{position:relative; width:38px; height:22px; background:var(--surface-3); border-radius:100px; flex-shrink:0;}
+.switch.on{background:var(--accent);}
+.switch::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; background:#fff; border-radius:50%; transition:.15s;}
+.switch.on::after{left:18px;}
+.sub-fields{padding-left:2px; margin-top:8px; display:none;}
+.sub-fields.open{display:block;}
+
+.summary-card{background:linear-gradient(160deg, var(--surface), var(--surface-2)); border:1px solid var(--accent); border-radius:var(--radius); padding:24px; position:sticky; top:86px;}
+.summary-label{font-size:12px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; font-weight:700;}
+.odometer{display:flex; align-items:baseline; gap:2px; margin:10px 0 4px;}
+.odometer .cur{font-family:'JetBrains Mono',monospace; font-size:22px; color:var(--accent); font-weight:700; margin-right:2px;}
+.odo-digit{display:inline-block; width:26px; height:38px; background:var(--surface-3); border-radius:6px; overflow:hidden; position:relative; text-align:center;}
+.odo-digit span{display:block; font-family:'JetBrains Mono',monospace; font-weight:700; font-size:26px; line-height:38px; color:var(--text); transition:transform .35s cubic-bezier(.3,1,.4,1), opacity .35s;}
+.odo-digit.roll span{transform:translateY(-38px); opacity:0;}
+.odo-slash{color:var(--text-dim2); font-family:'JetBrains Mono',monospace; font-size:22px; align-self:flex-end; margin-left:4px;}
+.summary-year{font-size:13px; color:var(--text-dim); margin-top:8px;}
+.summary-year b{color:var(--text); font-family:'JetBrains Mono',monospace;}
+.chart-wrap{margin-top:20px; height:200px; position:relative;}
+.legend-list{display:flex; flex-direction:column; gap:8px; margin-top:16px;}
+.legend-item{display:flex; align-items:center; justify-content:space-between; font-size:13px;}
+.legend-item .lk{display:flex; align-items:center; gap:8px; color:var(--text-dim);}
+.legend-dot{width:9px; height:9px; border-radius:50%;}
+.legend-item b{font-family:'JetBrains Mono',monospace;}
+.reset-btn{width:100%; margin-top:18px; padding:11px; border-radius:9px; background:none; border:1px solid var(--border); color:var(--text-dim); font-weight:600; font-size:13px;}
+.reset-btn:hover{border-color:var(--danger); color:var(--danger);}
+
+/* COMPARE PAGE */
+.cmp-table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);}
+table.cmp{width:100%; border-collapse:collapse; min-width:560px;}
+table.cmp th, table.cmp td{padding:14px 18px; text-align:left; border-bottom:1px solid var(--border); font-size:14px; white-space:nowrap;}
+table.cmp th{background:var(--surface-2); font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px;}
+table.cmp td{font-family:'JetBrains Mono',monospace;}
+table.cmp td.feat, table.cmp th.feat{font-family:'Inter',sans-serif; color:var(--text-dim); font-weight:600; position:sticky; left:0; background:var(--surface); z-index:1;}
+table.cmp th.feat{background:var(--surface-2);}
+td.best{color:var(--accent-2); font-weight:700;}
+.cmp-empty{text-align:center; padding:60px 20px; color:var(--text-dim);}
+
+footer{border-top:1px solid var(--border); padding:36px 0; margin-top:40px; color:var(--text-dim2); font-size:13px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;}
+
+.view{display:none;}
+.view.active{display:block;}
+.fade-in{animation:fadeIn .35s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+::-webkit-scrollbar{height:8px; width:8px;}
+::-webkit-scrollbar-thumb{background:var(--surface-3); border-radius:10px;}
+.empty-state{text-align:center; padding:60px 20px; color:var(--text-dim);}
+</style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="container navwrap">
+    <div class="logo"><span class="dot"></span>RevLedger<small>Bike Cost Lab</small></div>
+    <nav class="links">
+      <button class="navlink" data-view="home">Home</button>
+      <button class="navlink" data-view="browse">Bikes</button>
+      <button class="navlink" data-view="compare">Compare</button>
+      <button class="navlink" data-view="about">About</button>
+    </nav>
+    <div class="navright">
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">
+        <svg id="themeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn burger" id="burgerBtn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="navlink" data-view="home">Home</button>
+    <button class="navlink" data-view="browse">Bikes</button>
+    <button class="navlink" data-view="compare">Compare</button>
+    <button class="navlink" data-view="about">About</button>
+  </div>
+</header>
+
+<main class="container" id="app"></main>
+
+<footer class="container">
+  <span>© 2026 RevLedger — a bike research &amp; cost-planning concept.</span>
+  <span>All prices &amp; mileage are estimates. Verify with your dealer.</span>
+</footer>
+
+<script>
+/* ============ DATA ============ */
+const BIKES = [
+{id:"re-classic350",brand:"Royal Enfield",model:"Classic 350",variant:"Halcyon",type:"Retro",emoji:"🏍️",photo:"https://commons.wikimedia.org/wiki/Special:FilePath/Royal%20Enfield%20Classic%20350%20(2017%20Model%20Year).jpg?width=800",engine:349,engineType:"Air/Oil-cooled, Single",power:20.2,torque:27,transmission:"5-Speed",mileage:35,fuel:"Petrol",tank:13,weight:195,topSpeed:114,frontTyre:"90/90-19",rearTyre:"120/80-18",frontBrake:"300mm Disc",rearBrake:"270mm Disc",abs:"Dual-channel",seatHeight:805,groundClearance:170,exShowroom:193000,onRoad:230000},
+{id:"re-hunter350",brand:"Royal Enfield",model:"Hunter 350",variant:"Metro",type:"Roadster",emoji:"🏍️",photo:"https://commons.wikimedia.org/wiki/Special:FilePath/Hunter%20350%20side%20view%20India%20Model.png?width=800",engine:349,engineType:"Air/Oil-cooled, Single",power:20.2,torque:27,transmission:"5-Speed",mileage:37,fuel:"Petrol",tank:13,weight:181,topSpeed:114,frontTyre:"110/70-17",rearTyre:"140/70-17",frontBrake:"300mm Disc",rearBrake:"270mm Disc",abs:"Dual-channel",seatHeight:800,groundClearance:150,exShowroom:149900,onRoad:175000},
+{id:"re-himalayan450",brand:"Royal Enfield",model:"Himalayan 450",variant:"Standard",type:"Adventure",emoji:"🏍️",photo:"https://commons.wikimedia.org/wiki/Special:FilePath/Royal-Enfield-Himalayan-450.jpg?width=800",engine:452,engineType:"Liquid-cooled, Single",power:40,torque:40,transmission:"6-Speed",mileage:30,fuel:"Petrol",tank:17,weight:196,topSpeed:150,frontTyre:"90/90-21",rearTyre:"140/80-17",frontBrake:"320mm Disc",rearBrake:"270mm Disc",abs:"Dual-channel, switchable",seatHeight:825,groundClearance:230,exShowroom:285000,onRoad:320000},
+{id:"ym-r15v4",brand:"Yamaha",model:"R15 V4",variant:"Standard",type:"Sports",emoji:"🏁",photo:"https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20YZF-R15.jpg?width=800",engine:155,engineType:"Liquid-cooled, Single",power:18.4,torque:14.2,transmission:"6-Speed",mileage:45,fuel:"Petrol",tank:11,weight:141,topSpeed:136,frontTyre:"100/80-17",rearTyre:"140/70-17",frontBrake:"282mm Disc",rearBrake:"220mm Disc",abs:"Single-channel",seatHeight:815,groundClearance:170,exShowroom:185000,onRoad:215000},
+{id:"ym-mt15",brand:"Yamaha",model:"MT-15 V2",variant:"Standard",type:"Naked",emoji:"🏁",photo:"https://commons.wikimedia.org/wiki/Special:FilePath/Yamaha%20MT%2015%20Green%20version.jpg?width=800",engine:155,engineType:"Liquid-cooled, Single",power:18.4,torque:13.9,transmission:"6-Speed",mileage:43,fuel:"Petrol",tank:10,weight:139,topSpeed:131,frontTyre:"100/80-17",rearTyre:"140/70-17",frontBrake:"282mm Disc",rearBrake:"220mm Disc",abs:"Single-channel",seatHeight:810,groundClearance:160,exShowroom:175000,onRoad:205000},
+{id:"ym-fzsfi",brand:"Yamaha",model:"FZS-FI V4",variant:"Standard",type:"Naked",emoji:"🏁",engine:149,engineType:"Air-cooled, Single",power:12.2,torque:13.3,transmission:"5-Speed",mileage:48,fuel:"Petrol",tank:12,weight:135,topSpeed:114,frontTyre:"100/80-17",rearTyre:"140/60-17",frontBrake:"282mm Disc",rearBrake:"Drum",abs:"Single-channel",seatHeight:790,groundClearance:160,exShowroom:128000,onRoad:150000},
+{id:"hd-sp125",brand:"Honda",model:"SP 125",variant:"Disc",type:"Commuter",emoji:"🛵",engine:124,engineType:"Air-cooled, Single",power:11.8,torque:11,transmission:"5-Speed",mileage:65,fuel:"Petrol",tank:9.5,weight:120,topSpeed:98,frontTyre:"80/100-18",rearTyre:"80/100-18",frontBrake:"240mm Disc",rearBrake:"Drum",abs:"—",seatHeight:790,groundClearance:164,exShowroom:92000,onRoad:105000},
+{id:"hd-shine125",brand:"Honda",model:"Shine 125",variant:"Standard",type:"Commuter",emoji:"🛵",engine:124,engineType:"Air-cooled, Single",power:10.7,torque:10.9,transmission:"5-Speed",mileage:65,fuel:"Petrol",tank:11,weight:117,topSpeed:95,frontTyre:"80/100-18",rearTyre:"80/100-18",frontBrake:"Drum",rearBrake:"Drum",abs:"—",seatHeight:786,groundClearance:164,exShowroom:88000,onRoad:100000},
+{id:"hd-cb350",brand:"Honda",model:"CB350",variant:"H'Ness DLX",type:"Retro",emoji:"🏍️",engine:348,engineType:"Air-cooled, Single",power:21,torque:30,transmission:"5-Speed",mileage:35,fuel:"Petrol",tank:15,weight:181,topSpeed:120,frontTyre:"100/90-19",rearTyre:"130/70-18",frontBrake:"310mm Disc",rearBrake:"240mm Disc",abs:"Dual-channel",seatHeight:800,groundClearance:170,exShowroom:210000,onRoad:245000},
+{id:"hd-hornet2",brand:"Honda",model:"Hornet 2.0",variant:"Standard",type:"Naked",emoji:"🏁",engine:184,engineType:"Air-cooled, Single",power:17.03,torque:16.1,transmission:"5-Speed",mileage:40,fuel:"Petrol",tank:12,weight:141,topSpeed:118,frontTyre:"100/80-17",rearTyre:"140/70-17",frontBrake:"276mm Disc",rearBrake:"220mm Disc",abs:"Single-channel",seatHeight:795,groundClearance:166,exShowroom:140000,onRoad:165000},
+{id:"ktm-duke200",brand:"KTM",model:"Duke 200",variant:"Standard",type:"Naked",emoji:"🏁",engine:199,engineType:"Liquid-cooled, Single",power:25,torque:19.3,transmission:"6-Speed",mileage:35,fuel:"Petrol",tank:13.5,weight:159,topSpeed:137,frontTyre:"110/70-17",rearTyre:"150/60-17",frontBrake:"300mm Disc",rearBrake:"230mm Disc",abs:"Dual-channel, switchable",seatHeight:830,groundClearance:167,exShowroom:195000,onRoad:225000},
+{id:"ktm-duke390",brand:"KTM",model:"Duke 390",variant:"Standard",type:"Naked",emoji:"🏁",engine:399,engineType:"Liquid-cooled, Single",power:45,torque:39,transmission:"6-Speed",mileage:30,fuel:"Petrol",tank:13.4,weight:172,topSpeed:167,frontTyre:"110/70-17",rearTyre:"150/60-17",frontBrake:"320mm Disc",rearBrake:"240mm Disc",abs:"Dual-channel, switchable",seatHeight:820,groundClearance:170,exShowroom:320000,onRoad:360000},
+{id:"tvs-apache160",brand:"TVS",model:"Apache RTR 160 4V",variant:"Standard",type:"Sports",emoji:"🏁",engine:159,engineType:"Air/Oil-cooled, Single",power:17.55,torque:14.1,transmission:"5-Speed",mileage:45,fuel:"Petrol",tank:12,weight:145,topSpeed:114,frontTyre:"90/90-17",rearTyre:"110/80-17",frontBrake:"270mm Disc",rearBrake:"200mm Disc",abs:"Single-channel",seatHeight:800,groundClearance:180,exShowroom:132000,onRoad:152000},
+{id:"tvs-raider125",brand:"TVS",model:"Raider 125",variant:"Standard",type:"Commuter",emoji:"🛵",engine:124,engineType:"Air-cooled, Single",power:11.38,torque:11.2,transmission:"5-Speed",mileage:67,fuel:"Petrol",tank:10,weight:118,topSpeed:98,frontTyre:"90/90-17",rearTyre:"110/80-17",frontBrake:"240mm Disc",rearBrake:"Drum",abs:"—",seatHeight:780,groundClearance:180,exShowroom:90000,onRoad:103000},
+{id:"tvs-ronin",brand:"TVS",model:"Ronin",variant:"Standard",type:"Retro",emoji:"🏍️",engine:225,engineType:"Air/Oil-cooled, Single",power:20.4,torque:19.9,transmission:"5-Speed",mileage:40,fuel:"Petrol",tank:14,weight:157,topSpeed:114,frontTyre:"100/80-17",rearTyre:"130/70-17",frontBrake:"280mm Disc",rearBrake:"230mm Disc",abs:"Single-channel",seatHeight:780,groundClearance:174,exShowroom:150000,onRoad:175000},
+{id:"bj-ns200",brand:"Bajaj",model:"Pulsar NS200",variant:"Standard",type:"Naked",emoji:"🏁",engine:199,engineType:"Liquid-cooled, Single",power:24.13,torque:18.7,transmission:"6-Speed",mileage:35,fuel:"Petrol",tank:12,weight:159,topSpeed:136,frontTyre:"100/80-17",rearTyre:"130/70-17",frontBrake:"300mm Disc",rearBrake:"230mm Disc",abs:"Dual-channel",seatHeight:805,groundClearance:167,exShowroom:155000,onRoad:180000},
+{id:"bj-pulsar150",brand:"Bajaj",model:"Pulsar 150",variant:"Single Disc",type:"Commuter",emoji:"🛵",engine:149,engineType:"Air-cooled, Single",power:14,torque:13.4,transmission:"5-Speed",mileage:45,fuel:"Petrol",tank:14,weight:144,topSpeed:110,frontTyre:"90/90-17",rearTyre:"110/80-17",frontBrake:"260mm Disc",rearBrake:"Drum",abs:"—",seatHeight:790,groundClearance:165,exShowroom:115000,onRoad:133000},
+{id:"bj-dominar400",brand:"Bajaj",model:"Dominar 400",variant:"Standard",type:"Touring",emoji:"🏍️",engine:373,engineType:"Liquid-cooled, Single",power:39.4,torque:35,transmission:"6-Speed",mileage:30,fuel:"Petrol",tank:13,weight:193,topSpeed:148,frontTyre:"110/70-17",rearTyre:"150/60-17",frontBrake:"320mm Disc",rearBrake:"230mm Disc",abs:"Dual-channel",seatHeight:800,groundClearance:157,exShowroom:240000,onRoad:275000},
+{id:"sz-gixxersf250",brand:"Suzuki",model:"Gixxer SF 250",variant:"Standard",type:"Sports",emoji:"🏁",engine:249,engineType:"Oil-cooled, Single",power:26.5,torque:22.2,transmission:"6-Speed",mileage:35,fuel:"Petrol",tank:12,weight:159,topSpeed:137,frontTyre:"100/70-17",rearTyre:"140/60-17",frontBrake:"290mm Disc",rearBrake:"220mm Disc",abs:"Dual-channel",seatHeight:790,groundClearance:157,exShowroom:205000,onRoad:235000},
+{id:"sz-access125",brand:"Suzuki",model:"Access 125",variant:"Standard",type:"Scooter",emoji:"🛵",engine:124,engineType:"Air-cooled, Single",power:8.7,torque:10,transmission:"CVT Automatic",mileage:55,fuel:"Petrol",tank:5,weight:104,topSpeed:90,frontTyre:"90/90-12",rearTyre:"90/90-12",frontBrake:"190mm Disc",rearBrake:"Drum",abs:"CBS",seatHeight:765,groundClearance:158,exShowroom:85000,onRoad:97000},
+{id:"hr-splendorplus",brand:"Hero",model:"Splendor Plus",variant:"Standard",type:"Commuter",emoji:"🛵",engine:97,engineType:"Air-cooled, Single",power:8.02,torque:8.05,transmission:"4-Speed",mileage:70,fuel:"Petrol",tank:9.8,weight:112,topSpeed:90,frontTyre:"2.75-18",rearTyre:"3.00-18",frontBrake:"Drum",rearBrake:"Drum",abs:"—",seatHeight:790,groundClearance:166,exShowroom:78000,onRoad:88000},
+{id:"hr-xtreme160r",brand:"Hero",model:"Xtreme 160R",variant:"Standard",type:"Sports",emoji:"🏁",engine:163,engineType:"Air-cooled, Single",power:15.2,torque:14,transmission:"5-Speed",mileage:45,fuel:"Petrol",tank:12,weight:139,topSpeed:112,frontTyre:"90/90-17",rearTyre:"120/80-17",frontBrake:"276mm Disc",rearBrake:"220mm Disc",abs:"Single-channel",seatHeight:790,groundClearance:170,exShowroom:128000,onRoad:148000},
+{id:"kw-ninja300",brand:"Kawasaki",model:"Ninja 300",variant:"Standard",type:"Sports",emoji:"🏁",engine:296,engineType:"Liquid-cooled, Twin",power:39,torque:26.1,transmission:"6-Speed",mileage:28,fuel:"Petrol",tank:17,weight:172,topSpeed:172,frontTyre:"110/70-17",rearTyre:"140/70-17",frontBrake:"290mm Disc",rearBrake:"220mm Disc",abs:"Dual-channel",seatHeight:785,groundClearance:150,exShowroom:330000,onRoad:375000},
+{id:"bmw-g310r",brand:"BMW",model:"G 310 R",variant:"Standard",type:"Naked",emoji:"🏁",engine:313,engineType:"Liquid-cooled, Single",power:34,torque:28,transmission:"6-Speed",mileage:30,fuel:"Petrol",tank:11,weight:169,topSpeed:143,frontTyre:"110/70-17",rearTyre:"150/60-17",frontBrake:"300mm Disc",rearBrake:"240mm Disc",abs:"Dual-channel",seatHeight:785,groundClearance:170,exShowroom:285000,onRoad:320000},
+{id:"tr-speed400",brand:"Triumph",model:"Speed 400",variant:"Standard",type:"Retro",emoji:"🏍️",engine:398,engineType:"Liquid-cooled, Single",power:39.5,torque:37.5,transmission:"6-Speed",mileage:35,fuel:"Petrol",tank:13,weight:176,topSpeed:150,frontTyre:"110/70-17",rearTyre:"150/60-17",frontBrake:"300mm Disc",rearBrake:"230mm Disc",abs:"Dual-channel, switchable",seatHeight:790,groundClearance:157,exShowroom:233000,onRoad:265000},
+{id:"jw-42",brand:"Jawa",model:"42",variant:"Standard",type:"Retro",emoji:"🏍️",engine:293,engineType:"Liquid-cooled, Single",power:27,torque:27.02,transmission:"6-Speed",mileage:35,fuel:"Petrol",tank:14,weight:170,topSpeed:120,frontTyre:"90/90-19",rearTyre:"120/80-17",frontBrake:"280mm Disc",rearBrake:"240mm Disc",abs:"Dual-channel",seatHeight:765,groundClearance:170,exShowroom:213000,onRoad:245000},
+{id:"hdx-440",brand:"Harley-Davidson",model:"X440",variant:"Standard",type:"Cruiser",emoji:"🏍️",engine:440,engineType:"Air/Oil-cooled, Single",power:27,torque:38,transmission:"6-Speed",mileage:33,fuel:"Petrol",tank:11.5,weight:191,topSpeed:120,frontTyre:"100/90-19",rearTyre:"150/70-16",frontBrake:"320mm Disc",rearBrake:"240mm Disc",abs:"Dual-channel",seatHeight:705,groundClearance:160,exShowroom:235000,onRoad:270000},
+];
+
+/* ============ STATE ============ */
+const state = {
+  view:"home",
+  selectedId:null,
+  compareIds:[],
+  cmpSelection:[],
+  recentlyViewed:[],
+  favorites:[],
+  filters:{price:null,engine:null,mileage:null,brands:[],type:null},
+  calc:{},
+  theme:"dark",
+};
+
+function getCalc(id){
+  if(!state.calc[id]){
+    const b = BIKES.find(x=>x.id===id);
+    state.calc[id] = {
+      distance:1000, petrol:100, mileage:b.mileage,
+      emiOn:true, downPayment:Math.round(b.onRoad*0.2), loanAmount:b.onRoad-Math.round(b.onRoad*0.2), rate:9.5, tenure:36,
+      insOn:true, insuranceAnnual:Math.round(b.exShowroom*0.035),
+      maintOn:true, maintenance:Math.round(b.engine*3.2),
+      servOn:true, service:Math.round(b.engine*2.1),
+      otherOn:false, other:0,
+      city:"Bengaluru"
+    };
+  }
+  return state.calc[id];
+}
+
+/* ============ ICONS ============ */
+function bikeIcon(type, size=64, color="var(--accent)"){
+  const h = Math.round(size*0.58);
+  if(type==="Scooter"){
+    return `<svg width="${size}" height="${h}" viewBox="0 0 220 120" style="color:${color}" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="92" r="20" stroke="currentColor" stroke-width="6"/>
+      <circle cx="50" cy="92" r="6" fill="currentColor"/>
+      <circle cx="168" cy="92" r="20" stroke="currentColor" stroke-width="6"/>
+      <circle cx="168" cy="92" r="6" fill="currentColor"/>
+      <path d="M50 92 L72 92 L72 64 Q72 54 84 54 L100 54" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M72 64 L140 64 L140 92 L168 92" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M100 54 L100 32" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <path d="M86 30 L114 30" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <rect x="118" y="55" width="26" height="18" rx="4" fill="currentColor" opacity=".22"/>
+    </svg>`;
+  }
+  return `<svg width="${size}" height="${h}" viewBox="0 0 220 120" style="color:${color}" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="46" cy="90" r="25" stroke="currentColor" stroke-width="6"/>
+    <circle cx="46" cy="90" r="7" fill="currentColor"/>
+    <circle cx="174" cy="90" r="25" stroke="currentColor" stroke-width="6"/>
+    <circle cx="174" cy="90" r="7" fill="currentColor"/>
+    <path d="M46 90 L82 54 L122 54 L142 38 L166 38" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M82 54 L98 90 L152 90" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M98 90 L174 90" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+    <path d="M122 54 Q137 49 152 54" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+    <path d="M142 38 L157 26" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+    <path d="M157 26 L168 23 M157 26 L164 34" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="166" cy="38" r="5.5" fill="currentColor"/>
+    <path d="M46 90 L28 100" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function bikeMedia(b, size){
+  if(b.photo){
+    return `<img src="${b.photo}" alt="${b.brand} ${b.model}" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;" onerror="this.outerHTML=bikeIcon('${b.type}', ${size})">`;
+  }
+  return bikeIcon(b.type, size);
+}
+
+/* ============ HELPERS ============ */
+const inr = n => "₹" + Math.round(n).toLocaleString("en-IN");
+const inrLakh = n => n>=100000 ? "₹" + (n/100000).toFixed(2).replace(/\.00$/,"") + " L" : inr(n);
+function bikeById(id){return BIKES.find(b=>b.id===id);}
+function priceTier(b){
+  if(b.onRoad<100000) return "u1";
+  if(b.onRoad<200000) return "1-2";
+  if(b.onRoad<300000) return "2-3";
+  if(b.onRoad<500000) return "3-5";
+  return "5p";
+}
+function engineTier(b){
+  if(b.engine<125) return "u125";
+  if(b.engine<200) return "125-200";
+  if(b.engine<300) return "200-300";
+  if(b.engine<500) return "300-500";
+  return "500p";
+}
+
+/* ============ NAV ============ */
+document.querySelectorAll(".navlink").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    goTo(btn.dataset.view);
+    document.getElementById("mobileMenu").classList.remove("open");
+  });
+});
+document.getElementById("burgerBtn").addEventListener("click", ()=>{
+  document.getElementById("mobileMenu").classList.toggle("open");
+});
+document.getElementById("themeBtn").addEventListener("click", ()=>{
+  state.theme = state.theme==="dark" ? "light" : "dark";
+  document.body.setAttribute("data-theme", state.theme);
+  render();
+});
+
+function goTo(view, opts={}){
+  state.view = view;
+  Object.assign(state, opts);
+  document.querySelectorAll(".navlink").forEach(b=>b.classList.toggle("active", b.dataset.view===view));
+  window.scrollTo({top:0, behavior:"smooth"});
+  render();
+}
+function openDetails(id){
+  state.recentlyViewed = [id, ...state.recentlyViewed.filter(x=>x!==id)].slice(0,6);
+  goTo("details", {selectedId:id});
+}
+function toggleFav(id, ev){
+  if(ev) ev.stopPropagation();
+  if(state.favorites.includes(id)) state.favorites = state.favorites.filter(x=>x!==id);
+  else state.favorites.push(id);
+  render();
+}
+function toggleCompareSel(id, ev){
+  ev.stopPropagation();
+  if(state.cmpSelection.includes(id)) state.cmpSelection = state.cmpSelection.filter(x=>x!==id);
+  else if(state.cmpSelection.length<3) state.cmpSelection.push(id);
+  render();
+}
+
+/* ============ CARD RENDER ============ */
+function bikeCard(b, {showCompareCheck=false}={}){
+  const fav = state.favorites.includes(b.id);
+  const cmp = state.cmpSelection.includes(b.id);
+  return `
+  <div class="card" style="position:relative" onclick="openDetails('${b.id}')">
+    ${showCompareCheck?`<div class="cmp-check-wrap"><input type="checkbox" class="cmp-check" ${cmp?"checked":""} onclick="toggleCompareSel('${b.id}', event)"></div>`:""}
+    <div class="card-media"><span class="card-tag">${b.type}</span>${bikeMedia(b,80)}</div>
+    <div class="card-body">
+      <div class="card-brand">${b.brand}</div>
+      <div class="card-name">${b.model}</div>
+      <div class="card-stats">
+        <div class="card-stat">Mileage<b>${b.mileage} km/l</b></div>
+        <div class="card-stat">Engine<b>${b.engine}cc</b></div>
+      </div>
+      <div class="card-price">
+        <span class="price-tag">${inrLakh(b.onRoad)}</span>
+        <button class="card-fav ${fav?"active":""}" onclick="toggleFav('${b.id}', event)">${fav?"★":"☆"}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function railSection(idx, title, list){
+  if(!list.length) return "";
+  return `
+  <section class="block">
+    <div class="block-head">
+      <div class="block-title"><span class="idx">${idx}</span>${title}</div>
+      <a class="block-link" onclick="goTo('browse')">View all →</a>
+    </div>
+    <div class="grid">${list.map(b=>bikeCard(b)).join("")}</div>
+  </section>`;
+}
+
+/* ============ HOME VIEW ============ */
+function renderHome(){
+  const popular = [BIKES[0],BIKES[3],BIKES[10],BIKES[6],BIKES[15]];
+  const bestMileage = [...BIKES].sort((a,b)=>b.mileage-a.mileage).slice(0,5);
+  const under2L = BIKES.filter(b=>b.onRoad<200000).sort((a,b)=>a.onRoad-b.onRoad).slice(0,5);
+  const beginner = BIKES.filter(b=>b.engine<=165).slice(0,5);
+  const performance = [...BIKES].sort((a,b)=>b.power-a.power).slice(0,5);
+  const value = [...BIKES].sort((a,b)=>(b.mileage/b.onRoad*100000)-(a.mileage/a.onRoad*100000)).slice(0,5);
+
+  return `
+  <section class="hero">
+    <div class="eyebrow">28 bikes · live ownership-cost engine</div>
+    <h1 class="hero-h disp">Find your bike.<br>Know what it <em>really</em> costs.</h1>
+    <p class="hero-sub">Search any motorcycle, see the full spec sheet, and run the numbers on fuel, EMI, insurance and service — before you sign anything.</p>
+    <div class="searchbar" id="heroSearchWrap">
+      <div class="searchbar-inner">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="heroSearch" type="text" placeholder="Search for a bike... e.g. Classic 350, R15, Duke 390" autocomplete="off">
+        <button class="go" onclick="doSearch()">Search</button>
+      </div>
+      <div class="suggest-panel" id="suggestPanel" style="display:none;"></div>
+    </div>
+    <div class="chip-row">
+      ${["Royal Enfield Classic 350","Yamaha R15 V4","KTM Duke 390","Honda SP 125","TVS Apache RTR 160","Bajaj Pulsar NS200"].map(n=>`<span class="chip" onclick="quickSearch('${n}')">${n}</span>`).join("")}
+    </div>
+  </section>
+
+  ${railSection("01","Popular Bikes", popular)}
+  ${railSection("02","Best Mileage Bikes", bestMileage)}
+  ${railSection("03","Best Bikes Under ₹2 Lakh", under2L)}
+  ${railSection("04","Best Bikes for Beginners", beginner)}
+  ${railSection("05","Best Performance Bikes", performance)}
+  ${railSection("06","Best Value-for-Money Bikes", value)}
+  `;
+}
+
+function quickSearch(name){
+  const b = BIKES.find(x=>(x.brand+" "+x.model)===name) || BIKES.find(x=>x.model===name);
+  if(b) openDetails(b.id);
+}
+function doSearch(){
+  const q = document.getElementById("heroSearch").value.trim();
+  goTo("browse", {searchQuery:q});
+}
+
+/* ============ SEARCH AUTOCOMPLETE ============ */
+function attachSearchBox(){
+  const input = document.getElementById("heroSearch");
+  const panel = document.getElementById("suggestPanel");
+  if(!input) return;
+  input.addEventListener("input", ()=>{
+    const q = input.value.trim().toLowerCase();
+    if(!q){ panel.style.display="none"; return; }
+    const matches = BIKES.filter(b=>
+      (b.brand+" "+b.model).toLowerCase().includes(q) || b.model.toLowerCase().includes(q) || b.brand.toLowerCase().includes(q)
+    ).slice(0,6);
+    if(!matches.length){ panel.style.display="none"; return; }
+    panel.innerHTML = matches.map(b=>`
+      <div class="suggest-item" onclick="openDetails('${b.id}')">
+        <div class="suggest-thumb">${bikeMedia(b,26)}</div>
+        <div>
+          <div class="suggest-name">${b.brand} ${b.model}</div>
+          <div class="suggest-meta">${b.engine}cc • ${b.fuel}</div>
+        </div>
+      </div>`).join("");
+    panel.style.display="block";
+  });
+  input.addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
+  document.addEventListener("click", e=>{
+    if(!document.getElementById("heroSearchWrap")?.contains(e.target)) panel.style.display="none";
+  });
+}
+
+/* ============ BROWSE VIEW ============ */
+function renderBrowse(){
+  const brands = [...new Set(BIKES.map(b=>b.brand))].sort();
+  const types = [...new Set(BIKES.map(b=>b.type))].sort();
+  const f = state.filters;
+
+  let list = BIKES.filter(b=>{
+    if(state.searchQuery){
+      const q = state.searchQuery.toLowerCase();
+      if(!(b.brand+" "+b.model).toLowerCase().includes(q)) return false;
+    }
+    if(f.price && priceTier(b)!==f.price) return false;
+    if(f.engine && engineTier(b)!==f.engine) return false;
+    if(f.mileage==="40" && b.mileage<40) return false;
+    if(f.mileage==="50" && b.mileage<50) return false;
+    if(f.brands.length && !f.brands.includes(b.brand)) return false;
+    if(f.type && b.type!==f.type) return false;
+    return true;
+  });
+
+  const priceOpts = [["u1","Under ₹1 Lakh"],["1-2","₹1–2 Lakh"],["2-3","₹2–3 Lakh"],["3-5","₹3–5 Lakh"],["5p","₹5 Lakh+"]];
+  const engineOpts = [["u125","Under 125cc"],["125-200","125–200cc"],["200-300","200–300cc"],["300-500","300–500cc"],["500p","500cc+"]];
+  const mileageOpts = [["40","40+ km/l"],["50","50+ km/l"]];
+
+  return `
+  <div class="block" style="padding-top:32px;">
+    <div class="block-head"><div class="block-title">Browse Bikes</div></div>
+    <div class="browse-wrap">
+      <div class="filter-box">
+        <div class="filter-title" style="margin-top:0;">Price</div>
+        ${priceOpts.map(([v,l])=>`<label class="filter-opt ${f.price===v?'checked':''}"><input type="radio" name="pf" ${f.price===v?"checked":""} onchange="setFilter('price','${v}')">${l}</label>`).join("")}
+        <div class="filter-title">Engine</div>
+        ${engineOpts.map(([v,l])=>`<label class="filter-opt ${f.engine===v?'checked':''}"><input type="radio" name="ef" ${f.engine===v?"checked":""} onchange="setFilter('engine','${v}')">${l}</label>`).join("")}
+        <div class="filter-title">Mileage</div>
+        ${mileageOpts.map(([v,l])=>`<label class="filter-opt ${f.mileage===v?'checked':''}"><input type="radio" name="mf" ${f.mileage===v?"checked":""} onchange="setFilter('mileage','${v}')">${l}</label>`).join("")}
+        <div class="filter-title">Bike Type</div>
+        ${types.map(t=>`<label class="filter-opt ${f.type===t?'checked':''}"><input type="radio" name="tf" ${f.type===t?"checked":""} onchange="setFilter('type','${t}')">${t}</label>`).join("")}
+        <div class="filter-title">Brand</div>
+        ${brands.map(br=>`<label class="filter-opt ${f.brands.includes(br)?'checked':''}"><input type="checkbox" ${f.brands.includes(br)?"checked":""} onchange="toggleBrandFilter('${br}')">${br}</label>`).join("")}
+        <button class="filter-clear" onclick="clearFilters()">Clear all filters</button>
+      </div>
+      <div>
+        <div class="result-count">${list.length} bike${list.length!==1?"s":""} found${state.searchQuery?` for "${state.searchQuery}"`:""}</div>
+        ${list.length ? `<div class="grid">${list.map(b=>bikeCard(b,{showCompareCheck:true})).join("")}</div>` : `<div class="empty-state">No bikes match these filters. Try clearing a few.</div>`}
+        <div class="compare-bar">
+          <span style="font-size:13.5px; color:var(--text-dim);">${state.cmpSelection.length}/3 selected for comparison</span>
+          <button class="cmp-btn" ${state.cmpSelection.length<2?"disabled":""} onclick="goTo('compare',{compareIds:[...state.cmpSelection]})">Compare Selected →</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function setFilter(key, val){ state.filters[key] = state.filters[key]===val ? null : val; render(); }
+function toggleBrandFilter(br){
+  const f=state.filters;
+  f.brands = f.brands.includes(br) ? f.brands.filter(x=>x!==br) : [...f.brands, br];
+  render();
+}
+function clearFilters(){ state.filters = {price:null,engine:null,mileage:null,brands:[],type:null}; state.searchQuery=""; render(); }
+
+/* ============ DETAILS VIEW ============ */
+function renderDetails(){
+  const b = bikeById(state.selectedId);
+  if(!b) return `<div class="empty-state">Bike not found. <a onclick="goTo('browse')" style="color:var(--accent);">Browse bikes →</a></div>`;
+  const fav = state.favorites.includes(b.id);
+  const rto = Math.round(b.exShowroom*0.10);
+  const insurance = Math.round(b.exShowroom*0.035);
+  const otherCharges = Math.round(b.exShowroom*0.01);
+  const calcOnRoad = b.exShowroom + rto + insurance + otherCharges;
+
+  return `
+  <div class="fade-in">
+    <div class="crumb"><button onclick="goTo('home')">Home</button> / <button onclick="goTo('browse')">Bikes</button> / <span>${b.brand} ${b.model}</span></div>
+
+    <div class="detail-hero">
+      <div class="detail-media">${bikeMedia(b,220)}</div>
+      <div>
+        <div class="detail-brand">${b.brand}</div>
+        <div class="detail-name disp">${b.model}</div>
+        <div class="detail-variant">${b.variant} variant · ${b.type}</div>
+        <div class="detail-actions">
+          <button class="btn primary" onclick="document.getElementById('calcSection').scrollIntoView({behavior:'smooth'})">Calculate Ownership Cost</button>
+          <button class="btn" onclick="toggleFav('${b.id}')">${fav?"★ Saved":"☆ Save"}</button>
+          <button class="btn" onclick="toggleCompareSel('${b.id}', event); goTo('browse')">+ Compare</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-row">
+      <div class="hl-card"><div class="hl-label">Mileage</div><div class="hl-val accent">${b.mileage} km/l</div></div>
+      <div class="hl-card"><div class="hl-label">Engine</div><div class="hl-val">${b.engine} cc</div></div>
+      <div class="hl-card"><div class="hl-label">Power</div><div class="hl-val">${b.power} PS</div></div>
+      <div class="hl-card"><div class="hl-label">Torque</div><div class="hl-val">${b.torque} Nm</div></div>
+      <div class="hl-card"><div class="hl-label">Price</div><div class="hl-val accent">${inrLakh(b.onRoad)} onwards</div></div>
+    </div>
+
+    <div class="block-head"><div class="block-title"><span class="idx">◆</span>Specifications</div></div>
+    <div class="specs-grid">
+      <div class="spec-cat"><h4>Engine</h4>
+        <div class="spec-row"><span>Capacity</span><span>${b.engine} cc</span></div>
+        <div class="spec-row"><span>Type</span><span>${b.engineType}</span></div>
+        <div class="spec-row"><span>Max Power</span><span>${b.power} PS</span></div>
+        <div class="spec-row"><span>Max Torque</span><span>${b.torque} Nm</span></div>
+        <div class="spec-row"><span>Transmission</span><span>${b.transmission}</span></div>
+      </div>
+      <div class="spec-cat"><h4>Performance</h4>
+        <div class="spec-row"><span>Mileage (claimed)</span><span>${b.mileage} km/l</span></div>
+        <div class="spec-row"><span>Top Speed</span><span>~${b.topSpeed} km/h</span></div>
+        <div class="spec-row"><span>Fuel Type</span><span>${b.fuel}</span></div>
+        <div class="spec-row"><span>Fuel Tank</span><span>${b.tank} L</span></div>
+      </div>
+      <div class="spec-cat"><h4>Dimensions</h4>
+        <div class="spec-row"><span>Kerb Weight</span><span>${b.weight} kg</span></div>
+        <div class="spec-row"><span>Seat Height</span><span>${b.seatHeight} mm</span></div>
+        <div class="spec-row"><span>Ground Clearance</span><span>${b.groundClearance} mm</span></div>
+      </div>
+      <div class="spec-cat"><h4>Brakes &amp; Tyres</h4>
+        <div class="spec-row"><span>Front Brake</span><span>${b.frontBrake}</span></div>
+        <div class="spec-row"><span>Rear Brake</span><span>${b.rearBrake}</span></div>
+        <div class="spec-row"><span>ABS</span><span>${b.abs}</span></div>
+        <div class="spec-row"><span>Front Tyre</span><span>${b.frontTyre}</span></div>
+        <div class="spec-row"><span>Rear Tyre</span><span>${b.rearTyre}</span></div>
+      </div>
+    </div>
+
+    <div class="block-head" style="margin-top:40px;"><div class="block-title"><span class="idx">◆</span>How Much Will This Bike Cost?</div></div>
+    <div class="price-card">
+      <div class="price-line"><span>Ex-showroom price</span><span>${inr(b.exShowroom)}</span></div>
+      <div class="price-line"><span>RTO &amp; registration (est.)</span><span>${inr(rto)}</span></div>
+      <div class="price-line"><span>Insurance, 1st year (est.)</span><span>${inr(insurance)}</span></div>
+      <div class="price-line"><span>Other charges (est.)</span><span>${inr(otherCharges)}</span></div>
+      <div class="price-total"><span>Estimated On-Road Price</span><span>${inr(calcOnRoad)}</span></div>
+      <div class="disclaimer">On-road prices vary by city, state, dealer, insurance provider, and selected variant. Figures shown are approximate estimates, not verified real-world pricing.</div>
+    </div>
+
+    <div id="calcSection">${renderCalculator(b)}</div>
+  </div>`;
+}
+
+/* ============ CALCULATOR ============ */
+function emiFor(loan, annualRate, months){
+  if(loan<=0 || months<=0) return 0;
+  const r = annualRate/12/100;
+  if(r===0) return loan/months;
+  return loan*r*Math.pow(1+r,months)/(Math.pow(1+r,months)-1);
+}
+function computeCosts(b, c){
+  const fuel = (c.distance / Math.max(c.mileage,1)) * c.petrol;
+  const emi = c.emiOn ? emiFor(c.loanAmount, c.rate, c.tenure) : 0;
+  const ins = c.insOn ? c.insuranceAnnual/12 : 0;
+  const maint = c.maintOn ? c.maintenance : 0;
+  const serv = c.servOn ? c.service : 0;
+  const other = c.otherOn ? c.other : 0;
+  const total = fuel+emi+ins+maint+serv+other;
+  return {fuel,emi,ins,maint,serv,other,total};
+}
+
+function renderCalculator(b){
+  const c = getCalc(b.id);
+  return `
+  <div class="block-head" style="margin-top:40px;"><div class="block-title"><span class="idx">◆</span>Calculate Your Monthly Bike Expense</div></div>
+  <div class="calc-wrap">
+    <div>
+      <div class="calc-panel">
+        <h4><span class="n">1</span>Riding &amp; Fuel</h4>
+        <div class="field"><label>Monthly distance <span class="fval" id="lbl-distance">${c.distance} km</span></label>
+          <input type="range" min="200" max="4000" step="100" value="${c.distance}" oninput="updateCalc('${b.id}','distance',this.value)"></div>
+        <div class="field"><label>Petrol price <span class="fval" id="lbl-petrol">₹${c.petrol}/L</span></label>
+          <input type="range" min="80" max="130" step="1" value="${c.petrol}" oninput="updateCalc('${b.id}','petrol',this.value)"></div>
+        <div class="field"><label>Real-world mileage <span class="fval" id="lbl-mileage">${c.mileage} km/l</span></label>
+          <input type="range" min="10" max="80" step="1" value="${c.mileage}" oninput="updateCalc('${b.id}','mileage',this.value)"></div>
+      </div>
+
+      <div class="calc-panel" style="margin-top:18px;">
+        <h4><span class="n">2</span>Additional Monthly Expenses</h4>
+
+        <div class="toggle-row">
+          <span style="font-weight:600; font-size:14px;">EMI</span>
+          <div class="switch ${c.emiOn?'on':''}" onclick="toggleCalcSwitch('${b.id}','emiOn')"></div>
+        </div>
+        <div class="sub-fields ${c.emiOn?'open':''}" id="sub-emi-${b.id}">
+          <div class="field"><label>Down payment <span class="fval">${inr(c.downPayment)}</span></label>
+            <input type="range" min="0" max="${b.onRoad}" step="5000" value="${c.downPayment}" oninput="updateDownPayment('${b.id}',this.value)"></div>
+          <div class="field"><label>Loan amount <span class="fval">${inr(c.loanAmount)}</span></label>
+            <input type="range" min="0" max="${b.onRoad}" step="5000" value="${c.loanAmount}" disabled style="opacity:.5;"></div>
+          <div class="field"><label>Interest rate <span class="fval">${c.rate}%</span></label>
+            <input type="range" min="6" max="16" step="0.5" value="${c.rate}" oninput="updateCalc('${b.id}','rate',this.value)"></div>
+          <div class="field"><label>Loan tenure <span class="fval">${c.tenure} months</span></label>
+            <input type="range" min="6" max="60" step="6" value="${c.tenure}" oninput="updateCalc('${b.id}','tenure',this.value)"></div>
+        </div>
+
+        <div class="toggle-row">
+          <span style="font-weight:600; font-size:14px;">Insurance</span>
+          <div class="switch ${c.insOn?'on':''}" onclick="toggleCalcSwitch('${b.id}','insOn')"></div>
+        </div>
+        <div class="sub-fields ${c.insOn?'open':''}" id="sub-ins-${b.id}">
+          <div class="field"><label>Annual premium <span class="fval">${inr(c.insuranceAnnual)}</span></label>
+            <input type="range" min="1000" max="30000" step="500" value="${c.insuranceAnnual}" oninput="updateCalc('${b.id}','insuranceAnnual',this.value)"></div>
+        </div>
+
+        <div class="toggle-row">
+          <span style="font-weight:600; font-size:14px;">Maintenance</span>
+          <div class="switch ${c.maintOn?'on':''}" onclick="toggleCalcSwitch('${b.id}','maintOn')"></div>
+        </div>
+        <div class="sub-fields ${c.maintOn?'open':''}" id="sub-maint-${b.id}">
+          <div class="field"><label>Estimated monthly <span class="fval">${inr(c.maintenance)}</span></label>
+            <input type="range" min="0" max="3000" step="50" value="${c.maintenance}" oninput="updateCalc('${b.id}','maintenance',this.value)"></div>
+        </div>
+
+        <div class="toggle-row">
+          <span style="font-weight:600; font-size:14px;">Service</span>
+          <div class="switch ${c.servOn?'on':''}" onclick="toggleCalcSwitch('${b.id}','servOn')"></div>
+        </div>
+        <div class="sub-fields ${c.servOn?'open':''}" id="sub-serv-${b.id}">
+          <div class="field"><label>Estimated monthly <span class="fval">${inr(c.service)}</span></label>
+            <input type="range" min="0" max="2000" step="50" value="${c.service}" oninput="updateCalc('${b.id}','service',this.value)"></div>
+        </div>
+
+        <div class="toggle-row">
+          <span style="font-weight:600; font-size:14px;">Other expenses</span>
+          <div class="switch ${c.otherOn?'on':''}" onclick="toggleCalcSwitch('${b.id}','otherOn')"></div>
+        </div>
+        <div class="sub-fields ${c.otherOn?'open':''}" id="sub-other-${b.id}">
+          <div class="field"><label>Amount <span class="fval">${inr(c.other)}</span></label>
+            <input type="range" min="0" max="5000" step="100" value="${c.other}" oninput="updateCalc('${b.id}','other',this.value)"></div>
+        </div>
+
+        <button class="reset-btn" onclick="resetCalc('${b.id}')">Reset calculator</button>
+      </div>
+    </div>
+
+    <div class="summary-card" id="summary-${b.id}">
+      ${renderSummary(b)}
+    </div>
+  </div>
+  <div class="disclaimer" style="margin-top:16px;">Prices, mileage, insurance, maintenance, and monthly ownership costs are estimates and may vary depending on location, riding conditions, dealer pricing, fuel prices, insurance provider, financing terms, and actual usage.</div>
+  `;
+}
+
+let chartInstance = null;
+function renderSummary(b){
+  const c = getCalc(b.id);
+  const r = computeCosts(b,c);
+  const digits = String(Math.round(r.total)).padStart(5,"0").split("");
+  return `
+    <div class="summary-label">Estimated Monthly Cost</div>
+    <div class="odometer">
+      <span class="cur">₹</span>
+      ${digits.map(d=>`<span class="odo-digit"><span>${d}</span></span>`).join("")}
+    </div>
+    <div class="summary-year">Estimated yearly ownership: <b>${inr(r.total*12)}</b></div>
+    <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+    <div class="legend-list">
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#FF7A33"></span>Fuel</span><b>${inr(r.fuel)}</b></div>
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#33C2A3"></span>EMI</span><b>${inr(r.emi)}</b></div>
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#5B9EF3"></span>Insurance</span><b>${inr(r.ins)}</b></div>
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#E0C038"></span>Maintenance</span><b>${inr(r.maint)}</b></div>
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#B26BF0"></span>Service</span><b>${inr(r.serv)}</b></div>
+      <div class="legend-item"><span class="lk"><span class="legend-dot" style="background:#8B929B"></span>Other</span><b>${inr(r.other)}</b></div>
+    </div>
+  `;
+}
+function drawChart(b){
+  const c = getCalc(b.id);
+  const r = computeCosts(b,c);
+  const ctx = document.getElementById("donutChart");
+  if(!ctx) return;
+  if(chartInstance) chartInstance.destroy();
+  const styles = getComputedStyle(document.body);
+  chartInstance = new Chart(ctx, {
+    type:"doughnut",
+    data:{
+      labels:["Fuel","EMI","Insurance","Maintenance","Service","Other"],
+      datasets:[{
+        data:[r.fuel,r.emi,r.ins,r.maint,r.serv,r.other],
+        backgroundColor:["#FF7A33","#33C2A3","#5B9EF3","#E0C038","#B26BF0","#8B929B"],
+        borderWidth:0, hoverOffset:6
+      }]
+    },
+    options:{
+      cutout:"68%",
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.label+": ₹"+Math.round(ctx.raw).toLocaleString("en-IN")}}}
+    }
+  });
+}
+
+function updateCalc(id, key, val){
+  const c = getCalc(id);
+  c[key] = parseFloat(val);
+  refreshSummary(id);
+}
+function updateDownPayment(id, val){
+  const b = bikeById(id);
+  const c = getCalc(id);
+  c.downPayment = parseFloat(val);
+  c.loanAmount = Math.max(b.onRoad - c.downPayment, 0);
+  render();
+}
+function toggleCalcSwitch(id, key){
+  const c = getCalc(id);
+  c[key] = !c[key];
+  render();
+}
+function resetCalc(id){
+  delete state.calc[id];
+  render();
+}
+function refreshSummary(id){
+  const b = bikeById(id);
+  const el = document.getElementById("summary-"+id);
+  if(!el) return;
+  const c = getCalc(id);
+  const r = computeCosts(b,c);
+  const digits = String(Math.round(r.total)).padStart(5,"0").split("");
+  document.querySelectorAll(`#summary-${id} .odo-digit`).forEach((wrap, i)=>{
+    const span = wrap.querySelector("span");
+    if(span.textContent !== digits[i]){
+      span.textContent = digits[i];
+    }
+  });
+  document.querySelector(`#summary-${id} .summary-year b`).textContent = inr(r.total*12);
+  ["fuel","emi","ins","maint","serv","other"].forEach((k,i)=>{
+    const items = document.querySelectorAll(`#summary-${id} .legend-item b`);
+    if(items[i]) items[i].textContent = inr(r[k]);
+  });
+  drawChart(b);
+  document.getElementById("lbl-distance") && (document.getElementById("lbl-distance").textContent = c.distance+" km");
+  document.getElementById("lbl-petrol") && (document.getElementById("lbl-petrol").textContent = "₹"+c.petrol+"/L");
+  document.getElementById("lbl-mileage") && (document.getElementById("lbl-mileage").textContent = c.mileage+" km/l");
+}
+
+/* ============ COMPARE VIEW ============ */
+function renderCompare(){
+  const ids = state.compareIds && state.compareIds.length ? state.compareIds : state.cmpSelection;
+  if(!ids || ids.length<2){
+    return `<div class="block" style="padding-top:32px;">
+      <div class="block-head"><div class="block-title">Compare Bikes</div></div>
+      <div class="cmp-empty">Pick 2–3 bikes from the <a onclick="goTo('browse')" style="color:var(--accent);">Bikes page</a> to compare them side by side.</div>
+    </div>`;
+  }
+  const bikes = ids.map(bikeById).filter(Boolean);
+  const rows = [
+    ["Price", b=>inr(b.onRoad), b=>b.onRoad],
+    ["Mileage", b=>b.mileage+" km/l", b=>b.mileage],
+    ["Engine", b=>b.engine+" cc", b=>-b.engine],
+    ["Power", b=>b.power+" PS", b=>b.power],
+    ["Torque", b=>b.torque+" Nm", b=>b.torque],
+    ["Kerb Weight", b=>b.weight+" kg", b=>-b.weight],
+    ["Fuel Capacity", b=>b.tank+" L", b=>b.tank],
+  ];
+  const fuelMonthly = b=>(1000/b.mileage)*100;
+  const ownMonthly = b=>{
+    const c=getCalc(b.id); return computeCosts(b,c).total;
+  };
+  return `
+  <div class="block" style="padding-top:32px;">
+    <div class="block-head"><div class="block-title">Compare Bikes</div></div>
+    <div class="cmp-table-wrap">
+      <table class="cmp">
+        <thead><tr><th class="feat">Feature</th>${bikes.map(b=>`<th>${b.brand}<br>${b.model}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows.map(([label,fmt,sortval])=>{
+            const vals = bikes.map(b=>sortval(b));
+            const best = label==="Price"||label==="Kerb Weight"||label==="Engine" ? Math.min(...vals) : Math.max(...vals);
+            return `<tr><td class="feat">${label}</td>${bikes.map((b,i)=>`<td class="${vals[i]===best?'best':''}">${fmt(b)}</td>`).join("")}</tr>`;
+          }).join("")}
+          <tr><td class="feat">Monthly Fuel Cost*</td>${bikes.map(b=>{
+            const vals=bikes.map(fuelMonthly); const best=Math.min(...vals);
+            return `<td class="${fuelMonthly(b)===best?'best':''}">${inr(fuelMonthly(b))}</td>`;
+          }).join("")}</tr>
+          <tr><td class="feat">Est. Monthly Ownership</td>${bikes.map(b=>{
+            const vals=bikes.map(ownMonthly); const best=Math.min(...vals);
+            return `<td class="${ownMonthly(b)===best?'best':''}">${inr(ownMonthly(b))}</td>`;
+          }).join("")}</tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="disclaimer" style="margin-top:14px;">*Assumes 1,000 km/month at ₹100/L. Monthly ownership uses each bike's default EMI/insurance/maintenance assumptions — open a bike's page to fine-tune them. Highlighted cells show the stronger figure per row.</div>
+    <div style="margin-top:20px;"><button class="btn" onclick="state.cmpSelection=[]; state.compareIds=[]; goTo('browse')">Start a new comparison</button></div>
+  </div>`;
+}
+
+/* ============ ABOUT VIEW ============ */
+function renderAbout(){
+  return `
+  <div class="block" style="padding-top:32px; max-width:720px;">
+    <div class="block-head"><div class="block-title">About RevLedger</div></div>
+    <p style="color:var(--text-dim); font-size:15.5px; margin-bottom:14px;">RevLedger is a concept research tool for people shopping for a motorcycle in India. Instead of stopping at the sticker price, it runs the full monthly math — fuel, EMI, insurance, and service — so you can compare bikes by what they actually cost to keep on the road.</p>
+    <p style="color:var(--text-dim); font-size:15.5px;">Every figure on this site — pricing, mileage, EMI, insurance, maintenance — is an estimate for planning purposes. Confirm exact numbers with your dealer, RTO, and insurer before making a purchase decision.</p>
+  </div>`;
+}
+
+/* ============ MASTER RENDER ============ */
+function render(){
+  const app = document.getElementById("app");
+  let html = "";
+  if(state.view==="home") html = renderHome();
+  else if(state.view==="browse") html = renderBrowse();
+  else if(state.view==="details") html = renderDetails();
+  else if(state.view==="compare") html = renderCompare();
+  else if(state.view==="about") html = renderAbout();
+  app.innerHTML = `<div class="fade-in">${html}</div>`;
+
+  const icon = document.getElementById("themeIcon");
+  icon.innerHTML = state.theme==="dark"
+    ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
+    : '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+
+  if(state.view==="home") attachSearchBox();
+  if(state.view==="details" && state.selectedId){
+    const b = bikeById(state.selectedId);
+    if(b) setTimeout(()=>drawChart(b), 30);
+  }
+}
+
+goTo("home");
+</script>
+</body>
+</html>
